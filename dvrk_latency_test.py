@@ -51,7 +51,7 @@ class dvrk_latency_test():
             print 'Removing ROS Client for {}'.format(armIrfc.name())
             armIrfc = None # clearing arm interface handle
 
-    def _is_narm_valid(self, n_arms, max_num=5, min_num=0):
+    def _is_narm_valid(self, n_arms, max_num=6, min_num=0):
         if n_arms < min_num or n_arms > max_num:
             raise ValueError('num_arms cannot be negative or greater than {}'.format(max_num))
 
@@ -61,6 +61,6 @@ class dvrk_latency_test():
 
 
 latTest = dvrk_latency_test()
-latTest.create_arm_load(3)
+latTest.create_arm_load(6)
 time.sleep(3)
 latTest.relieve_arm_load()
