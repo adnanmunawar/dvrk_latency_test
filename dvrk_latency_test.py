@@ -5,19 +5,55 @@ from dvrk import arm, psm, mtm, ecm
 import rospy
 from geometry_msgs.msg import PoseStamped
 import time
-import thread
+from threading import Thread
+from cisst_msgs.msg import mtsIntervalStatistics as StatsMsg
 
 
-class dvrk_latency_test():
+class stats(object):
     def __init__(self):
+        rospy.init_node('dvrk_load_test')
+        self._rate = rospy.Rate(1000)
+        self._userDataScale = 10
+        self._active = True
+
+        self._stat_msg = StatsMsg
+        self._statsTopicPubStr = '/dvrk/rosBridge/period_statistics/user'
+        self._statsTopicSubStr = '/dvrk/rosBridge/period_statistics'
+
+        self._pub = rospy.Publisher(self._statsTopicPubStr, StatsMsg, queue_size=10)
+        self._sub = rospy.Subscriber(self._statsTopicSubStr, StatsMsg, self._ros_cb, queue_size=10, tcp_nodelay=True)
+
+        self._pubThread = Thread(target=self._run_pub)
+        self._pubThread.daemon = True
+        self._pubThread.start()
+
+    def set_user_data(self, n_arms):
+        self._stat_msg.UserData = n_arms * self._userDataScale
+        pass
+
+    def clear_user_data(self):
+        self._stat_msg.UserData = 0
+        pass
+
+    def disconnect(self):
+        self._active = False
+
+    def _ros_cb(self, data):
+        self._stat_msg = data
+        pass
+
+    def _run_pub(self):
+        while not rospy.is_shutdown() and self._active:
+            self._pub.publish(self._stat_msg)
+            self._rate.sleep()
+
+
+class dvrk_latency_test(stats):
+    def __init__(self):
+        super(dvrk_latency_test, self).__init__()
         self.psmInterface = psm
         self.mtmInterface = mtm
         self.ecmInterface = ecm
-        self.statsTopicStr = '/dvrk/Statistics/'
-        self.psmTopicStr = '/dvrk/PSM1/cartesian_position_current'
-        self.pub = None
-        self.poseData = PoseStamped()
-        self.threadPub = None
         self.arm_dict = {'PSM1': self.psmInterface,
                          'PSM2': self.psmInterface,
                          'PSM3': self.psmInterface,
@@ -26,16 +62,15 @@ class dvrk_latency_test():
                          'ECM' : self.ecmInterface}
         self.activeArms = []
 
-        self.sub = rospy.Subscriber(self.psmTopicStr, PoseStamped, self.ros_cb, 10)
-
     def create_arm_load(self, n_arms):
         self._is_narm_valid(n_arms, self.arm_dict.__len__(), 1)
         indx = 0
         for armStr, armIrce in self.arm_dict.iteritems():
-            armIrce = arm(armStr)
+            armIrce = armIrce(armStr)
             self.activeArms.append(armIrce)
             indx += 1
-            print 'Activating ROS Client for {}'.format(armIrce.name())
+            self.set_user_data(self.activeArms.__len__())
+            print 'Connecting ROS Client for {}'.format(armIrce.name())
             if indx == n_arms:
                 break
 
@@ -48,19 +83,19 @@ class dvrk_latency_test():
         self._is_narm_valid(n_arms, n_active_arms)
         for i in range(n_arms):
             armIrfc = self.activeArms.pop()
-            print 'Removing ROS Client for {}'.format(armIrfc.name())
-            armIrfc = None # clearing arm interface handle
+            armIrfc.unregister()
+            self.set_user_data(self.activeArms.__len__())
+            print 'Disconnecting ROS Client for {}'.format(armIrfc.name())
 
     def _is_narm_valid(self, n_arms, max_num=6, min_num=0):
         if n_arms < min_num or n_arms > max_num:
             raise ValueError('num_arms cannot be negative or greater than {}'.format(max_num))
 
-    def ros_cb(self, data):
-
-        pass
 
 
 latTest = dvrk_latency_test()
 latTest.create_arm_load(6)
-time.sleep(3)
+time.sleep(5)
 latTest.relieve_arm_load()
+time.sleep(5)
+latTest.disconnect()
