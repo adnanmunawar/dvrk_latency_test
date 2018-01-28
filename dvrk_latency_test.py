@@ -62,7 +62,7 @@ class dvrk_latency_test(stats):
                          'ECM' : self.ecmInterface}
         self.activeArms = []
 
-    def create_arm_load(self, n_arms):
+    def create_arm_load(self, n_arms, delay = 0.0):
         self._is_narm_valid(n_arms, self.arm_dict.__len__(), 1)
         indx = 0
         for armStr, armIrce in self.arm_dict.iteritems():
@@ -71,10 +71,11 @@ class dvrk_latency_test(stats):
             indx += 1
             self.set_user_data(self.activeArms.__len__())
             print 'Connecting ROS Client for {}'.format(armIrce.name())
+            time.sleep(delay)
             if indx == n_arms:
                 break
 
-    def relieve_arm_load(self, n_arms=None):
+    def relieve_arm_load(self, n_arms=None, delay = 0.0):
         n_active_arms = self.activeArms.__len__()
 
         if n_arms is None:
@@ -86,16 +87,8 @@ class dvrk_latency_test(stats):
             armIrfc.unregister()
             self.set_user_data(self.activeArms.__len__())
             print 'Disconnecting ROS Client for {}'.format(armIrfc.name())
+            time.sleep(delay)
 
     def _is_narm_valid(self, n_arms, max_num=6, min_num=0):
         if n_arms < min_num or n_arms > max_num:
             raise ValueError('num_arms cannot be negative or greater than {}'.format(max_num))
-
-
-
-latTest = dvrk_latency_test()
-latTest.create_arm_load(6)
-time.sleep(5)
-latTest.relieve_arm_load()
-time.sleep(5)
-latTest.disconnect()
