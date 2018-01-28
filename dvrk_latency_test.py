@@ -32,10 +32,10 @@ class dvrk_latency_test():
         self._is_narm_valid(n_arms, self.arm_dict.__len__(), 1)
         indx = 0
         for armStr, armIrce in self.arm_dict.iteritems():
-            armIrce(armStr)
+            armIrce = arm(armStr)
             self.activeArms.append(armIrce)
             indx += 1
-            print 'Activating ROS Client for {}'.format(armStr)
+            print 'Activating ROS Client for {}'.format(armIrce.name())
             if indx == n_arms:
                 break
 
@@ -48,7 +48,7 @@ class dvrk_latency_test():
         self._is_narm_valid(n_arms, n_active_arms)
         for i in range(n_arms):
             armIrfc = self.activeArms.pop()
-            print 'Removing ROS Client for {}'.format(armIrfc)
+            print 'Removing ROS Client for {}'.format(armIrfc.name())
             armIrfc = None # clearing arm interface handle
 
     def _is_narm_valid(self, n_arms, max_num=5, min_num=0):
@@ -63,4 +63,4 @@ class dvrk_latency_test():
 latTest = dvrk_latency_test()
 latTest.create_arm_load(3)
 time.sleep(3)
-latTest.relieve_arm_load(2)
+latTest.relieve_arm_load()
